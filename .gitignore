@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+build/
+dist/
+*.spec
+output/uploads/
+output/results/
+output/*.docx
+samples/sample_large_manuscript.docx
+.venv/
+venv/
