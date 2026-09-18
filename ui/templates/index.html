@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manuscript Formatter — Offline ML Publication Formatting</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+  <div class="page">
+
+    <div class="hero">
+      <div class="hero-eyebrow">OFFLINE · NO GENERATIVE AI · CONTENT-INTEGRITY VERIFIED</div>
+      <h1 class="hero-title chaos" id="heroTitle">
+        <span>Manuscripts,</span> <span>formatted</span> <span>properly.</span>
+      </h1>
+      <p class="hero-sub">Drop in a raw, unformatted manuscript. It comes back publication-ready — same words, every one
+        of them, just set the way a book should be.</p>
+    </div>
+
+    <div class="tray" id="tray">
+      <div class="tray-icon">&#128220;</div>
+      <div class="tray-title">Drop a .docx manuscript here, or click to choose one</div>
+      <div class="tray-sub">PARSED LOCALLY · NOTHING LEAVES THIS MACHINE</div>
+      <input type="file" id="fileInput" accept=".docx,.pdf">
+      <div class="filename-chip" id="filenameChip"></div>
+    </div>
+
+    <button class="run-btn" id="runBtn">Format Manuscript</button>
+
+    <div class="stages" id="stages">
+      <div class="stage-row" data-stage="parse">
+        <div class="stage-dot"></div> Reading manuscript structure (OOXML)
+      </div>
+      <div class="stage-row" data-stage="classify">
+        <div class="stage-dot"></div> Classifying elements (Random Forest / rules)
+      </div>
+      <div class="stage-row" data-stage="format">
+        <div class="stage-dot"></div> Applying publication specification
+      </div>
+      <div class="stage-row" data-stage="validate">
+        <div class="stage-dot"></div> Verifying content integrity
+      </div>
+    </div>
+
+    <div class="results" id="results">
+
+      <div class="integrity-banner" id="integrityBanner">
+        <div>
+          <div class="integrity-title" id="integrityTitle">Integrity check passed</div>
+          <div class="integrity-checksum" id="integrityChecksum"></div>
+        </div>
+        <div class="integrity-checksum" id="integrityCounts"></div>
+      </div>
+
+      <div class="section-label">ELEMENT TALLY</div>
+      <div class="tally-grid" id="tallyGrid"></div>
+
+      <div class="section-label">PROOF SHEET — ORIGINAL TEXT WITH ASSIGNED LABELS</div>
+      <div id="proofList"></div>
+      <div class="review-note" id="reviewNote"></div>
+
+      <div class="download-row">
+        <a href="#" class="download-btn" id="downloadBtn">Download Formatted Manuscript</a>
+      </div>
+      <div class="timings" id="timings"></div>
+    </div>
+
+    <div class="footer-note">docx-publication-formatter · HackACE 2026 · Team CodeNomad</div>
+  </div>
+
+  <script>
+    // Hero: chaos -> clean, once, on load (single orchestrated moment)
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('heroTitle').classList.remove('chaos');
+        document.getElementById('heroTitle').classList.add('clean');
+      }, 1100);
+    });
+
+    const tray = document.getElementById('tray');
+    const fileInput = document.getElementById('fileInput');
+    const filenameChip = document.getElementById('filenameChip');
+    const runBtn = document.getElementById('runBtn');
+    const stages = document.getElementById('stages');
+    const results = document.getElementById('results');
+    let selectedFile = null;
+
+    tray.addEventListener('click', () => fileInput.click());
+    ['dragover', 'dragenter'].forEach(evt =>
+      tray.addEventListener(evt, e => { e.preventDefault(); tray.classList.add('dragover'); })
+    );
+    ['dragleave', 'drop'].forEach(evt =>
+      tray.addEventListener(evt, e => { e.preventDefault(); tray.classList.remove('dragover'); })
+    );
+    tray.addEventListener('drop', e => {
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', e => {
+      if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+
+    function handleFile(file) {
+      const filename = file.name.toLowerCase();
+
+      // PHASE 5 EXTENSION GUARD UPDATE: Explicitly allow both document formats
+      if (!filename.endsWith('.docx') && !filename.endsWith('.pdf')) {
+        alert('Please choose a .docx or .pdf file.');
+        return;
+      }
+
+      selectedFile = file;
+      filenameChip.textContent = file.name;
+      filenameChip.style.display = 'block';
+      runBtn.style.display = 'block';
+
+      // STYLING UPDATE: Change the layout button text if a PDF file is targeted
+      if (filename.endsWith('.pdf')) {
+        runBtn.textContent = 'Extract PDF Structure';
+      } else {
+        runBtn.textContent = 'Format Manuscript';
+      }
+    }
+
+
+    runBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+      runBtn.disabled = true;
+      runBtn.textContent = 'Formatting…';
+      stages.style.display = 'block';
+      results.style.display = 'none';
+
+      const stageEls = [...document.querySelectorAll('.stage-row')];
+      let i = 0;
+      const stageTimer = setInterval(() => {
+        stageEls.forEach((el, idx) => {
+          el.classList.toggle('active', idx === i);
+          el.classList.toggle('done', idx < i);
+        });
+        i = Math.min(i + 1, stageEls.length);
+      }, 450);
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      try {
+        const res = await fetch('/api/process', { method: 'POST', body: formData });
+        const data = await res.json();
+        clearInterval(stageTimer);
+        stageEls.forEach(el => el.classList.add('done'));
+        if (data.error) { alert(data.error); resetRunBtn(); return; }
+        renderResults(data);
+      } catch (err) {
+        clearInterval(stageTimer);
+        alert('Something went wrong: ' + err);
+        resetRunBtn();
+      }
+    });
+
+    function resetRunBtn() {
+      runBtn.disabled = false;
+      runBtn.textContent = 'Format Manuscript';
+    }
+
+    function renderResults(data) {
+      resetRunBtn();
+      results.style.display = 'block';
+
+      const banner = document.getElementById('integrityBanner');
+      const passed = data.integrity.passed;
+      banner.classList.toggle('failed', !passed);
+      document.getElementById('integrityTitle').textContent =
+        passed ? 'Integrity check passed — zero content change detected' : 'Integrity check FAILED — review mismatches';
+      document.getElementById('integrityChecksum').textContent =
+        `sha256(original)  ${data.integrity.original_checksum.slice(0, 24)}…`;
+      document.getElementById('integrityCounts').textContent =
+        `${data.integrity.total_blocks} blocks compared · ${data.integrity.mismatched_blocks} mismatches`;
+
+      const tallyGrid = document.getElementById('tallyGrid');
+      tallyGrid.innerHTML = '';
+      Object.entries(data.label_counts).sort((a, b) => b[1] - a[1]).forEach(([label, count]) => {
+        tallyGrid.innerHTML += `<div class="tally-card"><div class="tally-count">${count}</div><div class="tally-label">${label.toUpperCase()}</div></div>`;
+      });
+
+      const proofList = document.getElementById('proofList');
+      proofList.innerHTML = '';
+      data.preview.forEach(p => {
+        proofList.innerHTML += `
+      <div class="proof-item">
+        <div class="proof-text">${escapeHtml(p.text)}${p.text.length >= 160 ? '…' : ''}</div>
+        <div class="proof-tag ${p.needs_review ? 'review' : ''}">${p.label} · ${(p.confidence * 100).toFixed(0)}%</div>
+      </div>`;
+      });
+
+      document.getElementById('reviewNote').textContent =
+        data.review_flags.length
+          ? `${data.review_flags.length} element(s) flagged below the confidence threshold for manual review.`
+          : 'All elements classified above the confidence threshold — no manual review needed.';
+
+      const downloadBtn = document.getElementById('downloadBtn');
+      downloadBtn.href = data.download_url;
+      downloadBtn.textContent = "Download Formatted Manuscript";
+      downloadBtn.style.background = ""; // Keeps your original clean theme CSS styling
+      downloadBtn.style.cursor = "pointer";
+
+      const t = data.timings;
+      document.getElementById('timings').textContent =
+        `parse ${t.parse_seconds}s · classify ${t.classify_seconds}s · format ${t.format_seconds}s · validate ${t.validate_seconds}s`;
+
+      results.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+
+</html>
