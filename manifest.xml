@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp xmlns="http://microsoft.com" xmlns:xsi="http://w3.org" xsi:type="TaskpaneApp">
+  <Id>d83a71b2-1194-4d1a-8cfa-553b490ceaa1</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>CodeNomad</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Publication Formatter" />
+  <Description DefaultValue="Offline Machine-Learning Hybrid Document Formatter Architecture Framework Pipeline."/>
+  <IconUrl DefaultValue="https://localhost:8080/assets/icon-32.png"/>
+  <SupportUrl DefaultValue="https://localhost:8080/support"/>
+  <Hosts>
+    <Host Name="Document" />
+  </Hosts>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="http://127.0.0" />
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+</OfficeApp>
