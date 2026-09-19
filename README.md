@@ -1,12 +1,29 @@
 # docx-publication-formatter
 **Intelligent Machine Learning-Based Offline DOCX-to-Publication Book Formatting System**
 
-HackACE 2026 · Domain 5 – AI-Driven IT Solutions · Team CodeNomad (ACEIH0767)
----## Problem Statement
+## Quick Start (Windows)
+
+```powershell
+python -m pip install -r requirements.txt
+python app.py
+```
+
+Open `http://127.0.0.1:5055` in a browser. The UI runs on the local machine only.
+
+For the CLI formatter:
+
+```powershell
+python cli.py samples\sample_unformatted.docx output.docx
+```
+
+Build the Windows CLI executable before a live demo with `./build_exe.bat`.
+The executable packages the CLI; run the local web UI separately with `python app.py`.
+
+## Problem Statement
 Book publishers, academic institutions, and conference organizers frequently receive manuscripts as unformatted Microsoft Word (`.docx`) files. Editorial teams must manually apply formatting standards — a slow, resource-heavy process that introduces inconsistency across publications, especially at scale (400+ page documents).
 ## Objective
-Build a fully **offline**, ML-based system that automatically detects structural elements in an unformatted `.docx` manuscript — titles, headings, subheadings, body text, tables, figures, captions, references, and lists — and applies a predefined publication formatting specification, while **preserving 100% of the original content** with zero rewriting or paraphrasing.
-> **Constraint:** No Generative AI, LLMs, or cloud-based AI services are used anywhere in this pipeline. Classification relies entirely on classical, explainable ML (Random Forest / CRF) running locally.
+Build a fully **offline**, ML-based system that automatically detects structural elements in an unformatted `.docx` manuscript — titles, headings, subheadings, body text, tables, figures, captions, references, and lists — and applies a predefined publication formatting specification without rewriting paragraph or table text.
+> **Constraint:** No Generative AI, LLMs, or cloud-based AI services are used anywhere in this pipeline. Classification uses an explainable, local Random Forest with deterministic rules.
 ## Approach
 Instead of treating the manuscript as an image (OCR-style), this system reads the `.docx` file's native OOXML structure directly — every paragraph already carries machine-readable metadata (font size, boldness, alignment, indentation), which is exploited instead of guessed at.
 
@@ -19,7 +36,7 @@ Upload → Structure Parser → ML Classifier → Formatting Engine → Integrit
 | **Structure Parser** | Extracts paragraphs, runs, and styles via the OOXML object model (`python-docx`, `lxml`) |
 | **ML Classifier** | Tags each paragraph — Title, Heading, Body, Caption, Reference, Table, List — using a deterministic rule-based layer coupled with an engineered feature pipeline (font size, bold/italic, indentation, position, regex cues) feeding a local Random Forest classifier |
 | **Formatting Engine** | Applies the exact publication spec deterministically per element type |
-| **Integrity Validator** | Runs a pre/post checksum diff on extracted text to mathematically guarantee zero content change |
+| **Integrity Validator** | Re-parses the DOCX output and compares normalized extracted body/table text block-by-block and with SHA-256 |
 
 ## Publication Formatting Spec
 
@@ -34,23 +51,23 @@ Upload → Structure Parser → ML Classifier → Formatting Engine → Integrit
 |---|---|
 | Core language | Python 3 |
 | Document parsing | `python-docx`, `lxml` |
-| ML classification | `scikit-learn` (Random Forest), `sklearn-crfsuite` (CRF) |
+| ML classification | `scikit-learn` (Random Forest) + deterministic rules |
 | Formatting engine | `python-docx` style injection |
 | Integrity validation | `hashlib` + custom text-diff module |
-| Desktop UI | PyQt / Electron / Local Web Engine Wrapper |
+| Local UI | Flask + HTML/CSS/JavaScript |
 | Testing | `pytest` |
-| Packaging | PyInstaller (offline executable, no install dependencies) |
+| PDF extraction | `pdfplumber` (local text/layout extraction) |
+| Packaging | PyInstaller CLI executable |
 
-## Verified Performance (measured, not estimated)
+## Verified Performance
 
-Benchmarked against a complex, 400+ page "Chaos" manuscript (~100,000 words, 2,100 heavily mixed structural blocks featuring irregular/sarcastic capitalization styles, short lines of dialogue under 6 words, alternating scene dividers, and positional reference notes):
+Benchmarked against the generated 420-page synthetic manuscript (~115,000 words and 4,000 blocks):
 
 | Metric | Result |
 |---|---|
-| Total processing time | **~3.5 seconds** end-to-end (parse + hybrid classify + format + validate) |
-| Peak memory usage | **~20 MB** |
-| Content integrity | **0 mismatches** — cryptographic SHA-256 checksums match exactly |
-| Elements flagged for manual review | **0%** (The robust high-precision heuristic layer intercepts complex typographical edge cases directly, bypassing the ML threshold fallback on unambiguous elements while keeping the pipeline fully automatic) |
+| Total processing time | **~15.4 seconds** end-to-end on the measured machine; timing varies by hardware |
+| Content integrity | **0 normalized extracted-text mismatches** in the measured run |
+| Elements flagged for manual review | **0** in the measured generated sample |
 | Embedded images/figures | **Preserved** — formatting is applied in place on the original document's paragraph/run/table objects, not by rebuilding from extracted text, so anything not explicitly restyled (images, drawings) survives untouched |
 
 Run it yourself:
@@ -66,32 +83,29 @@ Run it yourself:
 - [x] **Phase 2 — ML Classifier**  
       Hybrid rule + Random Forest classifier built, with confidence-based flagging for low-certainty predictions. 
 - [x] **Phase 3 — Integrity Validator + Scale Testing**  
-      Checksum diff module passing with 0 mismatches on all test manuscripts, including a 400+ page chaos stress test (~3.5s execution time) — verified via automated pytest.
+      Normalized extracted-text validator passing on all test manuscripts, including a generated 420-page stress test — verified via automated pytest.
 - [x] **Phase 3.5 — Local UI**  
       Drag-and-drop interface with an automated tally and a live proof sheet showing per-element confidence scores and classifications.
 - [x] **Phase 3.6 — Offline Executable**  
       Standalone binary built and verified via PyInstaller — runs with zero system dependencies.
 - [x] **Phase 4 — Stress Testing & Rule Expansion**  
       Expanded the layout heuristic interpreter layer to generalize against adversarial formatting (mixed case sizes, short lines of dialogue, bracketed signatures) without breaking high-confidence thresholds.
-- [x] **Phase 5 — PDF Input Support & MS Word Plugin**  
-      Integrated geometric PDF layout extraction processing capabilities and completed the background localhost server engine layer to enable seamless native MS Word Add-In hook workflows.
+- [x] **Phase 5 — PDF Input Support**
+      Integrated local geometric PDF text/layout extraction and reconstruction into a formatted DOCX.
 
 ## Known Limitations (honest, as of this submission)
 
-- The core ML classifier relies on a synthetic bootstrap configuration for its fallback layer. While the advanced deterministic rule layer resolves 100% of tested components cleanly (0% flagged for manual review), manuscripts featuring completely non-standard fonts or unique architectural symbols might slip through to the low-certainty warning pipeline.
+- The core ML classifier relies on a synthetic bootstrap configuration for its fallback layer. Manuscripts with non-standard fonts or unique structural conventions can still reach the low-certainty warning pipeline.
 - Complex real-world table edge cases (such as deeply nested multi-level cell merges or tracked revision states) require additional edge-case testing to ensure layout styling parameters remain pristine.
-- The web configuration frame requires a one-time dependency initialization; the standalone compiled native app binary completely bypasses this, making it the preferred vector for the live presentation environment.
+- The PDF path reconstructs a new DOCX from locally extracted text. It does not preserve the original PDF's exact layout, images, annotations, or non-text objects; its integrity report applies to the reconstructed DOCX pipeline.
+- The Office add-in manifest and local classification server are experimental integration artifacts and are not yet a production-verified Word add-in.
 
 ## Why This Approach
 
 - **Structure-aware, not OCR-based** — uses the `.docx` format's own machine-readable metadata instead of visual/image-based guessing
 - **Explainable Architecture** — combines deterministic structural rules with a shallow tree model; every classification choice can be traced back directly to clear typographical features rather than an uncontrollable black box
-- **Provably safe** — the Integrity Validator doesn't just claim zero content change, it mathematically verifies it via hashing
+- **Integrity checked** — the validator compares normalized extracted body/table text after re-parsing the DOCX output
 - **Fully offline** — no network calls, no cloud AI latency, no data privacy risk for unpublished manuscripts
-
-## Team
-
-**CodeNomad** (Individual Participant) · Hackathon ID: ACEIH0767 · KPR Institute of Engineering and Technology
 
 ## License
 
