@@ -58,7 +58,7 @@
       <div class="section-label">ELEMENT TALLY</div>
       <div class="tally-grid" id="tallyGrid"></div>
 
-      <div class="section-label">PROOF SHEET — ORIGINAL TEXT WITH ASSIGNED LABELS</div>
+      <div class="section-label">PROOF SHEET — FIRST 12 BLOCKS WITH ASSIGNED LABELS</div>
       <div id="proofList"></div>
       <div class="review-note" id="reviewNote"></div>
 
@@ -172,7 +172,7 @@
       const passed = data.integrity.passed;
       banner.classList.toggle('failed', !passed);
       document.getElementById('integrityTitle').textContent =
-        passed ? 'Integrity check passed — zero content change detected' : 'Integrity check FAILED — review mismatches';
+        passed ? 'Integrity check passed — zero normalized-text mismatches' : 'Integrity check FAILED — review mismatches';
       document.getElementById('integrityChecksum').textContent =
         `sha256(original)  ${data.integrity.original_checksum.slice(0, 24)}…`;
       document.getElementById('integrityCounts').textContent =

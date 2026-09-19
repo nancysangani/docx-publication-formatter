@@ -2,10 +2,9 @@
 Integrity Validator
 --------------------
 Formatting a manuscript is worthless — dangerous, even — if it silently
-changes the author's words. This module doesn't just claim content was
-preserved; it proves it, by re-parsing the formatted output and diffing its
-text against the original, block by block, with a checksum over the full
-document as a final cross-check.
+changes the author's words. This module re-parses the formatted output and
+compares its extracted body and table text with the original, block by block,
+with a checksum over the normalized extracted text as a final cross-check.
 """
 
 import hashlib
@@ -13,8 +12,12 @@ from core.parser import parse_docx, extract_plain_text
 
 
 def _normalize(text):
-    """Whitespace-insensitive normalization — formatting is allowed to
-    change line spacing/indentation, but never the words themselves."""
+    """Whitespace-insensitive normalization.
+
+    Formatting may change layout whitespace, but it must not change extracted
+    body or table words. Headers, footers, comments, footnotes, and tracked
+    changes are outside this validator's current scope.
+    """
     return " ".join(text.split())
 
 

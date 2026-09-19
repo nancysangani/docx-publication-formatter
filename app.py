@@ -58,35 +58,8 @@ def process():
         # Ingest raw text coordinate metrics using the offline PDF module
         _, original_blocks = convert_pdf_to_pipeline_blocks(input_path)
         
-        # Calculate label tallies and setup mock visual structures for the canvas preview
-        label_counts = {"Body": 0, "Heading": 0, "Reference": 0}
-        preview = []
-        
-        for b in original_blocks:
-            # Re-verify layout tags via an internal text mapping rules pattern
-            text_upper = b["text"].upper()
-            if "CHAPTER" in text_upper:
-                label = "Heading"
-                confidence = 0.95
-            elif b["text"].startswith("["):
-                label = "Reference"
-                confidence = 0.90
-            else:
-                label = "Body"
-                confidence = 0.95
-                
-            label_counts[label] = label_counts.get(label, 0) + 1
-            
-            # Feed data rows straight to the UI display sheet array
-            if len(preview) < 12:
-                preview.append({
-                    "text": b["text"][:160],
-                    "label": label,
-                    "confidence": confidence,
-                    "needs_review": False
-                })
-
-        # 1. Create a clean, structural Word document from the extracted PDF text strings
+        # PDF input is text/layout extraction followed by DOCX reconstruction;
+        # it is not an in-place transformation of the source PDF.
         temp_raw_path = os.path.join(UPLOAD_DIR, f"{job_id}_pdf_raw.docx")
         output_path = os.path.join(RESULT_DIR, f"{job_id}_formatted.docx")
         
@@ -144,7 +117,17 @@ def process():
         result = run_pipeline(temp_raw_path, output_path)
 
 
-        # Send the real, publication-formatted pipeline metrics back to the UI dashboard
+        _, reconstructed_blocks = parse_docx(temp_raw_path)
+        preview = []
+        for block, classified in zip(reconstructed_blocks[:12], result["blocks"][:12]):
+            preview.append({
+                "text": block["text"][:160],
+                "label": classified["label"],
+                "confidence": classified["confidence"],
+                "needs_review": classified["needs_review"],
+            })
+
+        # Integrity verification applies to the reconstructed DOCX pipeline.
         return jsonify({
             "job_id": job_id,
             "label_counts": result["label_counts"],
@@ -153,7 +136,7 @@ def process():
             "timings": result["timings"],
             "preview": preview,
             "download_url": f"/api/download/{job_id}",
-            "message": "PDF layout ingested, auto-formatted, and verified successfully!"
+            "message": "PDF text extracted and formatted. Integrity verification applies to the reconstructed DOCX."
         })
 
     # -----------------------------------------------------------------
@@ -210,4 +193,4 @@ def start_plugin_server():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5055, debug=False)
+    app.run(host="127.0.0.1", port=5055, debug=False)

@@ -2,9 +2,9 @@ python-docx>=1.1.0
 lxml>=5.0.0
 scikit-learn>=1.4.0
 flask>=3.0.0
+pdfplumber>=0.11.0
+pytest>=8.0.0
+pillow>=10.0.0
 
 # Optional — only needed to build a standalone offline executable:
 # pyinstaller>=6.0.0
-
-# Optional — only needed to run the test suite:
-# pytest>=8.0.0
